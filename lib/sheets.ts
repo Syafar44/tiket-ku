@@ -1,0 +1,163 @@
+import "server-only";
+import { z } from "zod";
+import { EVENT_CATEGORIES } from "./config";
+import type { EventItem, SiteConfig } from "./types";
+
+/*
+ * Klien Google Apps Script Web App (spreadsheet EventKu). Hanya berjalan di server:
+ * SHEETS_API_URL & SHEETS_API_TOKEN tidak boleh sampai ke browser.
+ */
+
+export const SHEETS_TAG = "sheets";
+
+const FETCH_TIMEOUT_MS = 8000;
+const REGISTER_TIMEOUT_MS = 15000;
+
+/** Host gambar yang diizinkan (harus sama dengan images.remotePatterns di next.config.ts). */
+const IMAGE_HOSTS = ["res.cloudinary.com"];
+
+/**
+ * Link gambar langsung dari Cloudinary, mis. https://res.cloudinary.com/<cloud>/image/upload/v1/poster.jpg.
+ * http diubah ke https. Link lain (halaman console/share Cloudinary, Google Drive, dll.) → undefined,
+ * supaya poster kembali ke gradien alih-alih membuat halaman error.
+ */
+function normalizeImageUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol === "http:") url.protocol = "https:";
+    if (url.protocol !== "https:" || !IMAGE_HOSTS.includes(url.hostname)) return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Sel kosong di sheet bisa datang sebagai "" atau null → anggap tidak diisi. */
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === "" || v === null ? undefined : v), schema.optional());
+
+const isoDate = z.string().refine((s) => !Number.isNaN(Date.parse(s)), "tanggal ISO tidak valid");
+
+const eventSchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  subtitle: optional(z.string()),
+  category: z.enum(EVENT_CATEGORIES as [EventItem["category"], ...EventItem["category"][]]),
+  startAt: isoDate,
+  endAt: isoDate,
+  venue: z.string().min(1),
+  mapsUrl: optional(z.string()),
+  audience: z.string(),
+  description: z.string(),
+  learnings: z.array(z.string()),
+  bring: z.array(z.string()),
+  speaker: z.object({ name: z.string(), role: z.string() }),
+  gradient: z.tuple([z.string(), z.string()]),
+  posterUrl: optional(z.string()),
+  eventId: optional(z.string()),
+  presenceFormUrl: optional(z.string()),
+  materialsUrl: optional(z.string()),
+  waGroupUrl: optional(z.string()),
+  registrantCount: optional(z.coerce.number().int().min(0)),
+}) satisfies z.ZodType<EventItem>;
+
+const configSchema = z.object({
+  gsaName: z.string().min(1),
+  gsaRole: z.string(),
+  gsaId: z.string().min(1),
+  city: z.string(),
+  prodiOptions: z.array(z.string().min(1)).min(1),
+}) satisfies z.ZodType<SiteConfig>;
+
+const eventsResponseSchema = z.union([
+  // Tiap event divalidasi terpisah supaya satu baris rusak tidak menjatuhkan semua event.
+  z.object({ ok: z.literal(true), config: configSchema, events: z.array(z.unknown()) }),
+  z.object({ ok: z.literal(false), error: z.string().optional() }),
+]);
+
+const registerResponseSchema = z.union([
+  z.object({
+    ok: z.literal(true),
+    registrationId: z.string(),
+    registrantCount: optional(z.coerce.number().int().min(0)),
+    duplicate: optional(z.boolean()),
+  }),
+  z.object({ ok: z.literal(false), error: z.string() }),
+]);
+
+export type SheetData = { config: SiteConfig; events: EventItem[] };
+export type RegisterResult = z.infer<typeof registerResponseSchema>;
+
+function credentials() {
+  const url = process.env.SHEETS_API_URL;
+  const token = process.env.SHEETS_API_TOKEN;
+  if (!url || !token) throw new Error("SHEETS_API_URL / SHEETS_API_TOKEN belum diisi");
+  return { url, token };
+}
+
+/** Baris rusak hanya dicatat sekali per isi kesalahan (respons di-cache, jadi parse berulang tiap request). */
+const reportedRows = new Set<string>();
+function reportOnce(msg: string) {
+  if (reportedRows.has(msg)) return;
+  reportedRows.add(msg);
+  console.error(msg);
+}
+
+/** Ambil config & event published dari spreadsheet. Lempar error kalau gagal/tidak valid. */
+export async function fetchSheetData(): Promise<SheetData> {
+  const { url, token } = credentials();
+  const endpoint = new URL(url);
+  endpoint.searchParams.set("action", "events");
+  endpoint.searchParams.set("token", token);
+
+  // Pesan error sengaja tidak memuat URL (berisi token).
+  const res = await fetch(endpoint, {
+    next: { revalidate: 60, tags: [SHEETS_TAG] },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Spreadsheet API membalas HTTP ${res.status}`);
+
+  const parsed = eventsResponseSchema.safeParse(await res.json());
+  if (!parsed.success) throw new Error(`Respons spreadsheet tidak valid: ${z.prettifyError(parsed.error)}`);
+  if (!parsed.data.ok) throw new Error(`Spreadsheet API: ${parsed.data.error ?? "ok: false"}`);
+
+  const events: EventItem[] = [];
+  parsed.data.events.forEach((raw, i) => {
+    const row = eventSchema.safeParse(raw);
+    if (row.success) {
+      const event = row.data;
+      if (event.posterUrl) {
+        const posterUrl = normalizeImageUrl(event.posterUrl);
+        if (!posterUrl) {
+          reportOnce(`[EventKu] posterUrl event "${event.slug}" diabaikan (harus link langsung https://res.cloudinary.com/...): ${event.posterUrl}`);
+        }
+        event.posterUrl = posterUrl;
+      }
+      events.push(event);
+      return;
+    }
+    const slug = (raw as { slug?: unknown } | null)?.slug;
+    reportOnce(`[EventKu] Event #${i + 1}${typeof slug === "string" ? ` (${slug})` : ""} dilewati: ${z.prettifyError(row.error)}`);
+  });
+
+  return { config: parsed.data.config, events };
+}
+
+/** Teruskan pendaftaran ke Apps Script (token ditambahkan di sini). */
+export async function registerToSheet(input: { slug: string; name: string; prodi: string; registrationId: string }): Promise<RegisterResult> {
+  const { url, token } = credentials();
+  // Apps Script membalas POST dengan 302 → ikuti redirect. Content-Type harus text/plain (hindari preflight/penolakan).
+  const res = await fetch(url, {
+    method: "POST",
+    redirect: "follow",
+    cache: "no-store",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ token, action: "register", ...input }),
+    signal: AbortSignal.timeout(REGISTER_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Spreadsheet API membalas HTTP ${res.status}`);
+
+  const parsed = registerResponseSchema.safeParse(await res.json());
+  if (!parsed.success) throw new Error(`Respons pendaftaran tidak valid: ${z.prettifyError(parsed.error)}`);
+  return parsed.data;
+}
