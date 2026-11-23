@@ -2,7 +2,7 @@ import Link from "next/link";
 import { fullTitle } from "@/lib/event";
 import { durationMinutes, formatScheduleShort } from "@/lib/time";
 import type { EventItem } from "@/lib/types";
-import { MetaBadge } from "@/components/ui/Badge";
+import { MetaBadge, TrackBadge } from "@/components/ui/Badge";
 import { Poster } from "./Poster";
 import { RegistrantCountLabel } from "./RegistrantCountLabel";
 import { SaveButton } from "./SaveButton";
@@ -23,7 +23,8 @@ export function EventGridCard({ event, ended = false }: { event: EventItem; ende
             </>
           )}
         </div>
-        <h3 className="mt-[10px] line-clamp-2 text-[17px] font-semibold uppercase leading-[21px] text-text" title={fullTitle(event)}>
+        <TrackBadge track={event.track} className="mt-[10px]" />
+        <h3 className="mt-[6px] line-clamp-2 text-[17px] font-semibold uppercase leading-[21px] text-text" title={fullTitle(event)}>
           {event.title}
         </h3>
         <p className="mt-[6px] text-[13.5px] leading-[18px] text-text-light">

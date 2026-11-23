@@ -1,5 +1,3 @@
-import type { EventCategory } from "./types";
-
 /** Penyelenggara tunggal semua event EventKu. */
 export const ORGANIZER = {
   gsaName: "Syafaruddin",
@@ -27,8 +25,6 @@ export const PRODI_OPTIONS = [
 ];
 
 export const PRODI_OTHER = "Lainnya";
-
-export const EVENT_CATEGORIES: EventCategory[] = ["AI untuk Belajar", "Coding", "Riset", "Karier"];
 
 /** Semua waktu event memakai zona ini (WITA, UTC+8, tanpa DST). */
 export const TIME_ZONE = "Asia/Makassar";

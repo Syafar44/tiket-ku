@@ -12,6 +12,9 @@ const SPEAKER = { name: ORGANIZER.gsaName, role: ORGANIZER.gsaRole };
 
 /** Field bersama semua sesi workshop GSA. */
 const base = {
+  // Data cadangan tidak punya info jalur: semua dianggap Rising Star dan tidak featured.
+  track: "Rising Star" as const,
+  featured: false,
   venue: VENUE,
   mapsUrl: MAPS_UMKT,
   speaker: SPEAKER,

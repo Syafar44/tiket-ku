@@ -1,7 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { EVENT_CATEGORIES } from "./config";
-import type { EventItem, SiteConfig } from "./types";
+import { EVENT_TRACKS, type EventItem, type SiteConfig } from "./types";
 
 /*
  * Klien Google Apps Script Web App (spreadsheet EventKu). Hanya berjalan di server:
@@ -42,7 +41,11 @@ const eventSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
   subtitle: optional(z.string()),
-  category: z.enum(EVENT_CATEGORIES as [EventItem["category"], ...EventItem["category"][]]),
+  category: z.string().trim().min(1),
+  // Belum diisi / tidak dikenal → "Rising Star" (sama dengan data lokal cadangan).
+  track: z.enum(EVENT_TRACKS).catch("Rising Star"),
+  // Sel checkbox/teks di sheet: TRUE/FALSE, "ya"/"tidak", 1/0. Kosong → false.
+  featured: z.boolean().catch(false),
   startAt: isoDate,
   endAt: isoDate,
   venue: z.string().min(1),
@@ -114,6 +117,15 @@ export function adaptSheetRow(raw: unknown): unknown {
     row.title = short;
   }
 
+  // track: terima variasi penulisan ("achiever", "Rising star", "rising_star").
+  if (typeof row.track === "string") {
+    const t = row.track.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+    row.track = t === "achiever" ? "Achiever" : t === "rising star" ? "Rising Star" : row.track;
+  }
+  // featured: sel sheet bisa berupa boolean, "TRUE"/"FALSE", "ya"/"tidak", atau 1/0.
+  if (typeof row.featured === "string") row.featured = ["true", "ya", "yes", "y", "1"].includes(row.featured.trim().toLowerCase());
+  else if (typeof row.featured === "number") row.featured = row.featured === 1;
+
   for (const key of ["startAt", "endAt"]) {
     const value = row[key];
     if (typeof value !== "string") continue;
@@ -150,6 +162,10 @@ export async function fetchSheetData(): Promise<SheetData> {
   if (!parsed.data.ok) throw new Error(`Spreadsheet API: ${parsed.data.error ?? "ok: false"}`);
 
   const events: EventItem[] = [];
+  const missing = (key: string) => parsed.data.ok && parsed.data.events.some((e) => !e || typeof e !== "object" || !(key in e));
+  if (missing("track") || missing("featured")) {
+    reportOnce('[EventKu] API events belum mengirim "track"/"featured" untuk sebagian event: memakai default track "Rising Star", featured false.');
+  }
   parsed.data.events.forEach((raw, i) => {
     const row = eventSchema.safeParse(adaptSheetRow(raw));
     if (row.success) {

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { formatDateLong, formatTimeRange } from "@/lib/time";
 import type { EventItem } from "@/lib/types";
+import { TrackBadge } from "@/components/ui/Badge";
 import { OutlinePillLink } from "@/components/ui/Button";
 import { PinFill, TicketFill } from "@/components/ui/icons";
 import { Poster } from "./Poster";
@@ -30,6 +31,7 @@ export function EventInfoCard({ event, strip }: { event: EventItem; strip: React
           <Poster title={event.title} gradient={event.gradient} imageUrl={event.posterUrl} titleClassName="text-[12px]" sizes="95px" />
         </div>
         <div className="min-w-0 flex-1">
+          <TrackBadge track={event.track} className="mb-[6px]" />
           <h1 className="text-[20px] font-bold leading-[24px] text-text">{event.title}</h1>
           <dl className="mt-[8px] space-y-[5px] text-[15px] leading-[17.6px]">
             <InfoRow label="Kategori">{event.category}</InfoRow>

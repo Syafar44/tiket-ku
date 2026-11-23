@@ -1,4 +1,4 @@
-import type { EventItem } from "./types";
+import type { EventCategory, EventItem } from "./types";
 
 /**
  * Judul resmi lengkap "Judul: Subjudul".
@@ -17,4 +17,9 @@ export function whatsappHelpUrl(number: string | undefined): string | undefined 
   if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
   if (digits.length < 9 || digits.length > 15) return undefined;
   return `https://wa.me/${digits}?text=${encodeURIComponent("Halo, saya butuh bantuan soal EventKu.")}`;
+}
+
+/** Kategori unik dari daftar event (untuk chip filter), urut abjad. Kategori baru di sheet otomatis ikut. */
+export function categoriesOf(events: Pick<EventItem, "category">[]): EventCategory[] {
+  return [...new Set(events.map((e) => e.category))].sort((a, b) => a.localeCompare(b, "id"));
 }

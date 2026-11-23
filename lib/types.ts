@@ -1,4 +1,9 @@
-export type EventCategory = "AI untuk Belajar" | "Coding" | "Riset" | "Karier";
+/** Kategori bebas dari spreadsheet (mis. "AI untuk Belajar", "Kreatif"); chip filter dibentuk dari data. */
+export type EventCategory = string;
+
+/** Jalur program GSA. */
+export const EVENT_TRACKS = ["Achiever", "Rising Star"] as const;
+export type EventTrack = (typeof EVENT_TRACKS)[number];
 
 export type EventStatus = "upcoming" | "ongoing" | "ended";
 
@@ -9,6 +14,10 @@ export type EventItem = {
   /** Subjudul, mis. "Menulis Perintah yang Efektif agar Gemini Menjadi Partner Belajar" */
   subtitle?: string;
   category: EventCategory;
+  /** Jalur: "Achiever" atau "Rising Star" */
+  track: EventTrack;
+  /** Tampil di carousel utama Beranda ("GSA Goes to Achiever") */
+  featured: boolean;
   /** ISO dengan offset WITA, mis. "2026-11-28T16:00:00+08:00" */
   startAt: string;
   /** ISO */

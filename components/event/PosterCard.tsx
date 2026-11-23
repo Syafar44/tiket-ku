@@ -5,7 +5,7 @@ import { cx } from "@/lib/format";
 import type { EventItem } from "@/lib/types";
 import { useHydrated } from "@/lib/useHydrated";
 import { findRegistration, useRegistrations } from "@/store/useRegistrations";
-import { GoldBadge } from "@/components/ui/Badge";
+import { GoldBadge, TrackBadge } from "@/components/ui/Badge";
 import { Poster } from "./Poster";
 
 interface PosterCardProps {
@@ -37,7 +37,10 @@ export function PosterCard({ event, index, active, onSelect }: PosterCardProps) 
     >
       <div className={cx("relative transition-[height] duration-200", active ? "h-[273px]" : "h-[290px]")}>
         <Poster title={event.title} gradient={event.gradient} imageUrl={event.posterUrl} titleClassName="text-[20px]" priority={index === 0} />
-        <GoldBadge className="absolute left-[10px] top-[10px]">Gratis</GoldBadge>
+        <div className="absolute left-[10px] top-[10px] flex items-center gap-[4px]">
+          <GoldBadge>Gratis</GoldBadge>
+          <TrackBadge track={event.track} />
+        </div>
         <span className="absolute right-[10px] top-[10px] flex size-[20px] items-center justify-center rounded-full bg-black/35 text-[11px] font-bold text-white">
           {index + 1}
         </span>
