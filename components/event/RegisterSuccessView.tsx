@@ -6,7 +6,6 @@ import { formatSchedule } from "@/lib/time";
 import type { EventItem } from "@/lib/types";
 import { useHydrated } from "@/lib/useHydrated";
 import { findRegistration, useRegistrations } from "@/store/useRegistrations";
-import { StatusSafeArea } from "@/components/layout/StatusSafeArea";
 import { PrimaryPillLink } from "@/components/ui/Button";
 import { SuccessSkeleton } from "@/components/ui/Skeleton";
 
@@ -19,8 +18,7 @@ export function RegisterSuccessView({ event }: { event: EventItem }) {
 
   if (!registration) {
     return (
-      <main className="px-[32px] text-center">
-        <StatusSafeArea />
+      <main className="px-[32px] pt-[env(safe-area-inset-top)] text-center">
         <p className="pt-[80px] text-[17px] font-bold text-text">Kamu belum terdaftar di event ini</p>
         <p className="mt-[6px] text-[15px] text-text-muted">Buka detail event lalu tekan Daftar Sekarang.</p>
         <PrimaryPillLink href={`/event/${event.slug}`} className="mt-[20px]">
@@ -31,8 +29,7 @@ export function RegisterSuccessView({ event }: { event: EventItem }) {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col bg-section px-[20px] pb-[40px]">
-      <StatusSafeArea />
+    <main className="flex min-h-dvh flex-col bg-section px-[20px] pb-[40px] pt-[env(safe-area-inset-top)]">
       <div className="flex flex-col items-center pt-[40px] text-center">
         <span className="flex size-[88px] animate-pop-in items-center justify-center rounded-full bg-success-soft">
           <span className="flex size-[60px] items-center justify-center rounded-full bg-success text-white">

@@ -1,27 +1,40 @@
 import { StickyHeader } from "@/components/layout/StatusSafeArea";
-import { TopBar } from "@/components/layout/TopBar";
+import { HomeHeader } from "@/components/layout/HomeHeader";
 import { PromoCarousel } from "@/components/home/PromoCarousel";
 import { SectionHeader } from "@/components/home/SectionHeader";
 import { HomeEvents } from "@/components/home/HomeEvents";
 import { EventGrid } from "@/components/event/EventGridCard";
-import { activeEvents, getEvents } from "@/lib/data";
+import { activeEvents, getEvents, getSiteConfig } from "@/lib/data";
+import { whatsappHelpUrl } from "@/lib/event";
+import { isInCurrentWeek } from "@/lib/time";
 
-/** Hitung ulang tiap jam supaya event yang sudah selesai otomatis turun dari Beranda. */
-/** Data spreadsheet di-cache 60 detik. */
+/** Data spreadsheet di-cache 60 detik; halaman dihitung ulang paling lama tiap 60 detik. */
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const events = activeEvents(await getEvents());
+  const now = Date.now();
+  const [all, config] = await Promise.all([getEvents(), getSiteConfig()]);
+  const events = activeEvents(all, now);
+
+  // "Minggu Ini": hanya event yang mulai Senin–Minggu minggu berjalan (WITA).
+  // Disembunyikan kalau kosong, atau kalau isinya persis sama dengan carousel (tidak menduplikasi).
+  const thisWeek = events.filter((e) => isInCurrentWeek(e.startAt, now));
+  const showThisWeek = thisWeek.length > 0 && thisWeek.length < events.length;
+
   return (
     <main className="pb-[100px]">
       <StickyHeader>
-        <TopBar />
+        <HomeHeader helpUrl={whatsappHelpUrl(config.helpWhatsapp)} />
       </StickyHeader>
       <PromoCarousel />
       <SectionHeader title="Event Mendatang" />
       <HomeEvents events={events} />
-      <SectionHeader title="Minggu Ini" />
-      <EventGrid events={events} />
+      {showThisWeek && (
+        <>
+          <SectionHeader title="Minggu Ini" />
+          <EventGrid events={thisWeek} />
+        </>
+      )}
     </main>
   );
 }

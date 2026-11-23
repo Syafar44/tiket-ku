@@ -7,7 +7,6 @@ import { useHydrated } from "@/lib/useHydrated";
 import { useNow } from "@/lib/useNow";
 import { useRegistrations } from "@/store/useRegistrations";
 import { StickyHeader } from "@/components/layout/StatusSafeArea";
-import { TopBar } from "@/components/layout/TopBar";
 import { PrimaryPillLink } from "@/components/ui/Button";
 import { TicketFill } from "@/components/ui/icons";
 import { Sk } from "@/components/ui/Skeleton";
@@ -45,7 +44,6 @@ export function MyTicketsView({ events }: { events: EventItem[] }) {
   return (
     <main className="pb-[100px]">
       <StickyHeader>
-        <TopBar showBell />
         <Tabs tabs={TABS} value={tab} onChange={setTab} height={50} idPrefix="tickets" />
       </StickyHeader>
 

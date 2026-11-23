@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { events as localEvents } from "@/data/events";
-import { ORGANIZER, PRODI_OPTIONS, PRODI_OTHER } from "./config";
+import { HELP_WHATSAPP, ORGANIZER, PRODI_OPTIONS, PRODI_OTHER } from "./config";
 import { fetchSheetData } from "./sheets";
 import { getEventStatus } from "./time";
 import type { EventItem, SiteConfig } from "./types";
@@ -23,7 +23,7 @@ function withOther(options: string[]): string[] {
 
 const LOCAL: SiteData = {
   events: [...localEvents].sort(byStart),
-  config: { ...ORGANIZER, prodiOptions: withOther(PRODI_OPTIONS) },
+  config: { ...ORGANIZER, prodiOptions: withOther(PRODI_OPTIONS), helpWhatsapp: HELP_WHATSAPP || undefined },
 };
 
 /** Satu log per gangguan: dicetak saat mulai gagal, di-reset saat spreadsheet pulih. */

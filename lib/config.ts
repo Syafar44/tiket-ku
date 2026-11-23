@@ -8,6 +8,9 @@ export const ORGANIZER = {
   city: "Samarinda",
 };
 
+/** Nomor WhatsApp bantuan cadangan saat spreadsheet tidak bisa diakses. Kosong = ikon bantuan disembunyikan. */
+export const HELP_WHATSAPP = "";
+
 /** Label kecil di header tiket & ringkasan event. */
 export const ORGANIZER_LABEL = "GSA UMKT";
 

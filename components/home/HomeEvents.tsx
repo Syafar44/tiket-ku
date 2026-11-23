@@ -14,7 +14,7 @@ export function HomeEvents({ events }: { events: EventItem[] }) {
 
   return (
     <>
-      <div className="no-scrollbar flex gap-[7px] overflow-x-auto px-[20px] py-[2px]" role="group" aria-label="Filter kategori">
+      <div className="no-scrollbar flex gap-[7px] overflow-x-auto px-[20px]" role="group" aria-label="Filter kategori">
         <Chip selected={filter === "all"} onClick={() => setFilter("all")}>
           Semua
         </Chip>

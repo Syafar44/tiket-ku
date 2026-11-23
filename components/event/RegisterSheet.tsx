@@ -21,10 +21,15 @@ interface RegisterSheetProps {
   onClose: () => void;
 }
 
+/** 16px: di bawah itu iOS Safari otomatis zoom saat input difokus. */
 const inputCls =
-  "h-[40px] w-full rounded-[8px] border bg-white px-[14px] text-[15px] text-text outline-none transition-colors duration-150 placeholder:text-text-disabled focus:border-link";
+  "h-[44px] w-full rounded-[8px] border bg-white px-[14px] text-[16px] text-text outline-none transition-colors duration-150 placeholder:text-text-disabled focus:border-link";
 
-/** Form Daftar Event (bottom sheet). */
+const errorCls = "mt-[4px] text-[12.5px] text-danger";
+
+type Field = "name" | "prodi" | "other";
+
+/** Form Daftar Event (bottom sheet). Sheet & form sengaja didefinisikan di level modul supaya tidak di-remount. */
 export function RegisterSheet({ event, prodiOptions, open, onClose }: RegisterSheetProps) {
   return (
     <BottomSheet open={open} onClose={onClose} labelledBy="register-title">
@@ -40,7 +45,10 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
   const toast = useToast((s) => s.show);
   const profile = useProfile();
   const uid = useId();
+  const id = (f: string) => `${uid}-${f}`;
   const nameRef = useRef<HTMLInputElement>(null);
+  const prodiRef = useRef<HTMLSelectElement>(null);
+  const otherRef = useRef<HTMLInputElement>(null);
   // Satu ID per form yang dibuka: klik ganda / coba lagi memakai ID yang sama (tidak dobel di spreadsheet).
   const registrationIdRef = useRef<string | null>(null);
   // Penjaga sinkron: state `submitting` belum ter-update di antara dua klik yang sangat cepat.
@@ -53,17 +61,36 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
   const [otherProdi, setOtherProdi] = useState(remembered && !knownProdi ? profile.prodi : "");
   // Default tercentang.
   const [remember, setRemember] = useState(true);
-  const [touched, setTouched] = useState({ name: false, other: false });
+  // Pesan error baru tampil setelah field ditinggalkan (blur) atau setelah tombol konfirmasi ditekan.
+  const [touched, setTouched] = useState<Record<Field, boolean>>({ name: false, prodi: false, other: false });
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isOther = prodi === PRODI_OTHER;
   const finalProdi = isOther ? otherProdi.trim() : prodi;
-  const nameError = name.trim().length < 3 ? "Isi nama lengkap (minimal 3 huruf)." : null;
-  const otherError = isOther && otherProdi.trim().length < 3 ? "Tulis nama program studimu." : null;
-  const valid = !nameError && !!prodi && !otherError;
+  const errors: Record<Field, string | null> = {
+    name: name.trim().length < 3 ? "Isi nama lengkap (minimal 3 huruf)." : null,
+    prodi: !prodi ? "Pilih program studimu." : null,
+    other: isOther && otherProdi.trim().length < 3 ? "Tulis nama program studimu." : null,
+  };
+  const valid = !errors.name && !errors.prodi && !errors.other;
+  const shown = (f: Field) => (touched[f] || submitAttempted ? errors[f] : null);
+  const touch = (f: Field) => setTouched((t) => (t[f] ? t : { ...t, [f]: true }));
+
+  const fieldProps = (f: Field) => ({
+    "aria-invalid": !!shown(f),
+    "aria-describedby": shown(f) ? id(`${f}-error`) : undefined,
+    onBlur: () => touch(f),
+  });
 
   const submit = async () => {
-    if (!valid || inFlightRef.current) return;
+    if (inFlightRef.current) return;
+    if (!valid) {
+      setSubmitAttempted(true);
+      // Arahkan ke field pertama yang belum benar.
+      (errors.name ? nameRef : errors.prodi ? prodiRef : otherRef).current?.focus();
+      return;
+    }
     inFlightRef.current = true;
     setSubmitting(true);
     registrationIdRef.current ??= newRegistrationId();
@@ -81,10 +108,9 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
     }
   };
 
-  const id = (f: string) => `${uid}-${f}`;
-
   return (
     <form
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -124,17 +150,16 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
             id={id("name")}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onBlur={() => setTouched((t) => ({ ...t, name: true }))}
             autoComplete="name"
+            enterKeyHint="next"
             maxLength={100}
             placeholder="Nama sesuai KTM"
-            aria-invalid={touched.name && !!nameError}
-            aria-describedby={touched.name && nameError ? id("name-error") : undefined}
-            className={cx(inputCls, touched.name && nameError ? "border-danger" : "border-border-strong")}
+            {...fieldProps("name")}
+            className={cx(inputCls, shown("name") ? "border-danger" : "border-border-strong")}
           />
-          {touched.name && nameError && (
-            <p id={id("name-error")} className="mt-[4px] text-[12.5px] text-danger">
-              {nameError}
+          {shown("name") && (
+            <p id={id("name-error")} className={errorCls}>
+              {shown("name")}
             </p>
           )}
         </div>
@@ -145,10 +170,20 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
           </label>
           <div className="relative">
             <select
+              ref={prodiRef}
               id={id("prodi")}
               value={prodi}
-              onChange={(e) => setProdi(e.target.value)}
-              className={cx(inputCls, "appearance-none border-border-strong pr-[38px]", !prodi && "text-text-disabled")}
+              onChange={(e) => {
+                setProdi(e.target.value);
+                touch("prodi");
+              }}
+              {...fieldProps("prodi")}
+              className={cx(
+                inputCls,
+                "appearance-none pr-[38px]",
+                shown("prodi") ? "border-danger" : "border-border-strong",
+                !prodi && "text-text-disabled",
+              )}
             >
               <option value="" disabled>
                 Pilih program studi
@@ -161,25 +196,34 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
             </select>
             <ChevronDown size={18} className="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 text-text-muted" aria-hidden />
           </div>
+          {shown("prodi") && (
+            <p id={id("prodi-error")} className={errorCls}>
+              {shown("prodi")}
+            </p>
+          )}
           {isOther && (
             <>
               <input
+                ref={otherRef}
                 id={id("other")}
                 value={otherProdi}
                 onChange={(e) => setOtherProdi(e.target.value)}
-                onBlur={() => setTouched((t) => ({ ...t, other: true }))}
                 maxLength={80}
                 placeholder="Tulis program studimu"
                 aria-label="Program studi lainnya"
-                aria-invalid={touched.other && !!otherError}
-                className={cx(inputCls, "mt-[8px]", touched.other && otherError ? "border-danger" : "border-border-strong")}
+                {...fieldProps("other")}
+                className={cx(inputCls, "mt-[8px]", shown("other") ? "border-danger" : "border-border-strong")}
               />
-              {touched.other && otherError && <p className="mt-[4px] text-[12.5px] text-danger">{otherError}</p>}
+              {shown("other") && (
+                <p id={id("other-error")} className={errorCls}>
+                  {shown("other")}
+                </p>
+              )}
             </>
           )}
         </div>
 
-        <label className="flex cursor-pointer items-center gap-[10px] py-[4px] text-[14px] text-text">
+        <label className="flex min-h-[44px] cursor-pointer items-center gap-[10px] text-[14px] text-text">
           <input
             type="checkbox"
             checked={remember}
@@ -190,18 +234,18 @@ function RegisterForm({ event, prodiOptions, onClose }: { event: EventItem; prod
         </label>
       </div>
 
-      <p className="mt-[12px] text-[13px] leading-[18px] text-text-muted">Gratis. Cukup datang dan isi presensi di akhir sesi.</p>
+      <p className="mt-[8px] text-[13px] leading-[18px] text-text-muted">Gratis. Cukup datang dan isi presensi di akhir sesi.</p>
 
       <div className="-mx-[20px] mt-[16px]">
-        <CtaButton type="submit" withIcon={false} disabled={!valid || submitting}>
-        {submitting ? (
-          <>
-            <Loader2 size={20} className="animate-spin" aria-hidden />
-            MENDAFTARKAN…
-          </>
-        ) : (
-          "KONFIRMASI PENDAFTARAN"
-        )}
+        <CtaButton type="submit" withIcon={false} disabled={submitting} aria-busy={submitting}>
+          {submitting ? (
+            <>
+              <Loader2 size={20} className="animate-spin" aria-hidden />
+              MENDAFTARKAN…
+            </>
+          ) : (
+            "KONFIRMASI PENDAFTARAN"
+          )}
         </CtaButton>
       </div>
     </form>

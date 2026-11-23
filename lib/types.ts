@@ -56,6 +56,8 @@ export type SiteConfig = {
   city: string;
   /** Selalu diakhiri "Lainnya" */
   prodiOptions: string[];
+  /** Nomor WhatsApp bantuan (opsional), mis. "081234567890" atau "6281234567890". Kosong = ikon bantuan disembunyikan. */
+  helpWhatsapp?: string;
 };
 
 export type Profile = {

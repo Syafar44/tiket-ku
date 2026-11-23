@@ -14,13 +14,16 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Strip kuning (status/hitung mundur) + kartu info putih yang menimpanya. */
-export function EventInfoCard({ event, stripText }: { event: EventItem; stripText: string }) {
+/**
+ * Strip kuning (status/hitung mundur) + kartu info putih yang menimpanya.
+ * `strip` = isi teks strip; dikirim sebagai komponen sendiri supaya tick hitung mundur tidak me-render ulang kartu.
+ */
+export function EventInfoCard({ event, strip }: { event: EventItem; strip: ReactNode }) {
   return (
     <div className="relative z-10 px-[20px]">
       <div className="flex h-[40px] items-start justify-center gap-[6px] rounded-[10px] bg-accent pt-[6px] text-primary" aria-live="off">
         <TicketFill size={16} />
-        <span className="text-[13px] font-bold leading-[16px] tabular-nums">{stripText}</span>
+        <span className="text-[13px] font-bold leading-[16px] tabular-nums">{strip}</span>
       </div>
       <div className="relative -mt-[13px] flex gap-[17px] rounded-[10px] border border-border bg-white px-[17px] py-[16px]">
         <div className="h-[144px] w-[95px] shrink-0 overflow-hidden rounded-[8px]">
@@ -28,7 +31,6 @@ export function EventInfoCard({ event, stripText }: { event: EventItem; stripTex
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-[20px] font-bold leading-[24px] text-text">{event.title}</h1>
-          {event.subtitle && <p className="mt-[4px] text-[14px] leading-[19px] text-text-muted">{event.subtitle}</p>}
           <dl className="mt-[8px] space-y-[5px] text-[15px] leading-[17.6px]">
             <InfoRow label="Kategori">{event.category}</InfoRow>
             <InfoRow label="Tanggal">{formatDateLong(event.startAt)}</InfoRow>

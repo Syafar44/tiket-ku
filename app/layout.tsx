@@ -14,7 +14,15 @@ const roboto = Roboto({
   display: "swap",
 });
 
+/** URL publik situs untuk link absolut di metadata (og:image, og:url). */
+function siteUrl(): URL {
+  if (process.env.SITE_URL) return new URL(process.env.SITE_URL);
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  return new URL("http://localhost:3000");
+}
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: { default: "EventKu — Event Kampus Samarinda", template: "%s · EventKu" },
   description: "Daftar workshop AI gratis GSA UMKT di Samarinda lewat EventKu.",
 };
@@ -23,6 +31,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#1A2C50",
+  // Keyboard virtual mengecilkan layout (Chrome Android), jadi sheet & CTA bawah tetap terlihat di atasnya.
+  interactiveWidget: "resizes-content",
+  // Wajib supaya env(safe-area-inset-*) terisi di perangkat ber-notch.
+  viewportFit: "cover",
 };
 
 /** Sembunyikan splash sebelum paint jika sudah pernah tampil di sesi ini. */

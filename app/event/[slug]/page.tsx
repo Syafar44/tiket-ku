@@ -15,8 +15,26 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const event = await getEventBySlug((await params).slug);
-  return event ? { title: event.title, description: `${fullTitle(event)} · ${formatSchedule(event)}` } : { title: "Event tidak ditemukan" };
+  const { slug } = await params;
+  const event = await getEventBySlug(slug);
+  if (!event) return { title: "Event tidak ditemukan" };
+
+  const title = fullTitle(event);
+  const description = `${formatSchedule(event)} · ${event.venue}. Gratis untuk semua mahasiswa, daftar lewat EventKu.`;
+  const url = `/event/${slug}`;
+  // Tanpa posterUrl: gambar default dari app/opengraph-image.tsx. Harus ditulis eksplisit, karena begitu halaman
+  // mengisi `openGraph` sendiri, gambar dari opengraph-image di root tidak lagi diwariskan.
+  const images = event.posterUrl
+    ? [{ url: event.posterUrl, alt: title }]
+    : [{ url: "/opengraph-image", width: 1200, height: 630, alt: title, type: "image/png" }];
+
+  return {
+    title: event.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { type: "website", siteName: "EventKu", locale: "id_ID", url, title, description, images },
+    twitter: { card: "summary_large_image", title, description, images },
+  };
 }
 
 export default async function EventDetailPage({ params }: { params: Params }) {

@@ -67,6 +67,8 @@ const configSchema = z.object({
   gsaId: z.string().min(1),
   city: z.string(),
   prodiOptions: z.array(z.string().min(1)).min(1),
+  // Sel angka di sheet (mis. 6281234567890) datang sebagai number → jadikan teks.
+  helpWhatsapp: optional(z.union([z.string(), z.number()]).transform(String)),
 }) satisfies z.ZodType<SiteConfig>;
 
 const eventsResponseSchema = z.union([
@@ -93,6 +95,32 @@ function credentials() {
   const token = process.env.SHEETS_API_TOKEN;
   if (!url || !token) throw new Error("SHEETS_API_URL / SHEETS_API_TOKEN belum diisi");
   return { url, token };
+}
+
+/**
+ * Toleransi format sheet:
+ * - Kolom lama `shortTitle` + `title` lengkap ("Judul: Subjudul") → `title` + `subtitle`.
+ * - Waktu tanpa zona ("2026-11-28 16:00") dianggap WITA → "2026-11-28T16:00:00+08:00",
+ *   supaya tidak bergeser mengikuti zona server (Vercel = UTC).
+ */
+export function adaptSheetRow(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const row = { ...(raw as Record<string, unknown>) };
+
+  const short = typeof row.shortTitle === "string" ? row.shortTitle.trim() : "";
+  if (!row.subtitle && short && typeof row.title === "string") {
+    const full = row.title.trim();
+    if (full.startsWith(short)) row.subtitle = full.slice(short.length).replace(/^[\s:–—-]+/, "").trim() || undefined;
+    row.title = short;
+  }
+
+  for (const key of ["startAt", "endAt"]) {
+    const value = row[key];
+    if (typeof value !== "string") continue;
+    const m = value.trim().match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(:\d{2})?$/);
+    if (m) row[key] = `${m[1]}T${m[2]}${m[3] ?? ":00"}+08:00`;
+  }
+  return row;
 }
 
 /** Baris rusak hanya dicatat sekali per isi kesalahan (respons di-cache, jadi parse berulang tiap request). */
@@ -123,7 +151,7 @@ export async function fetchSheetData(): Promise<SheetData> {
 
   const events: EventItem[] = [];
   parsed.data.events.forEach((raw, i) => {
-    const row = eventSchema.safeParse(raw);
+    const row = eventSchema.safeParse(adaptSheetRow(raw));
     if (row.success) {
       const event = row.data;
       if (event.posterUrl) {

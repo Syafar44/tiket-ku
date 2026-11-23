@@ -98,6 +98,33 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
+  /* Ruang scrollbar selalu dipesan: layout tidak bergeser saat scroll dikunci (sheet terbuka) atau halaman pendek. */
+  scrollbar-gutter: stable;
+}
+
+/* Min. 16px: iOS Safari otomatis zoom saat memfokus input yang lebih kecil. */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+/* Cincin fokus hanya untuk navigasi keyboard (:focus-visible), bukan saat diketuk/diklik. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="dialog"]:focus-visible {
+  /* Field memakai warna border sendiri saat fokus; panel dialog tidak perlu cincin. */
+  outline: none;
 }
 
 body {

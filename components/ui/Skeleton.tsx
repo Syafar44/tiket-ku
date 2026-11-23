@@ -1,19 +1,31 @@
 import { cx } from "@/lib/format";
 
-export function Sk({ className }: { className?: string }) {
-  return <div aria-hidden className={cx("animate-pulse rounded-[6px] bg-disabled-bg", className)} />;
+export function Sk({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <div aria-hidden style={style} className={cx("animate-pulse rounded-[6px] bg-disabled-bg", className)} />;
 }
 
+/** Sama dengan StickyHeader: hanya sebesar safe area perangkat. */
 function SafeArea() {
-  return <div className="h-[47px]" />;
+  return <div className="h-[env(safe-area-inset-top)]" />;
 }
 
-function BarSkeleton() {
+/** Header Beranda: logo + ikon bantuan. */
+function HomeBarSkeleton() {
   return (
-    <div className="flex h-[45px] items-center gap-[16px] border-b border-border px-[16px]">
-      <Sk className="h-[29px] flex-1 rounded-full" />
+    <div className="flex h-[52px] items-center justify-between border-b border-border pl-[20px] pr-[18px]">
+      <Sk className="h-[24px] w-[120px]" />
       <Sk className="size-[24px] rounded-full" />
-      <Sk className="size-[24px] rounded-full" />
+    </div>
+  );
+}
+
+/** Baris chip kategori (Jelajah). */
+function ChipsSkeleton() {
+  return (
+    <div className="flex h-[52px] items-center gap-[7px] border-b border-border px-[20px]">
+      {[70, 120, 70, 60].map((w, i) => (
+        <Sk key={i} className="h-[30px] rounded-full" style={{ width: w }} />
+      ))}
     </div>
   );
 }
@@ -22,8 +34,7 @@ export function HomeSkeleton() {
   return (
     <div aria-busy="true" aria-label="Memuat">
       <SafeArea />
-      <BarSkeleton />
-      <Sk className="h-[40px] rounded-none" />
+      <HomeBarSkeleton />
       <Sk className="mt-[6px] h-[146px] rounded-none" />
       <div className="px-[22px] pt-[18px]">
         <Sk className="h-[24px] w-[200px]" />
@@ -40,7 +51,10 @@ export function GridSkeleton() {
   return (
     <div aria-busy="true" aria-label="Memuat">
       <SafeArea />
-      <BarSkeleton />
+      <ChipsSkeleton />
+      <div className="px-[20px] pt-[16px]">
+        <Sk className="h-[24px] w-[160px]" />
+      </div>
       <div className="grid grid-cols-2 gap-[13px] p-[20px]">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i}>
@@ -97,7 +111,6 @@ export function ListSkeleton() {
   return (
     <div aria-busy="true" aria-label="Memuat">
       <SafeArea />
-      <BarSkeleton />
       <div className="h-[50px] border-b border-border" />
       <div className="space-y-[24px] p-[20px]">
         {Array.from({ length: 3 }, (_, i) => (

@@ -77,6 +77,17 @@ export function formatScheduleShort(event: Pick<EventItem, "startAt">): string {
   return `${formatDateShort(event.startAt)} · ${formatTime(event.startAt)}`;
 }
 
+/** Apakah `iso` jatuh di minggu berjalan (Senin 00:00 – Minggu 23:59, WITA). */
+export function isInCurrentWeek(iso: string, now: number | Date): boolean {
+  const dayIndex = (t: number) => Math.floor((t + WITA_OFFSET_MS) / DAY_MS);
+  const today = dayIndex(ms(now));
+  // getUTCDay pada waktu yang sudah digeser ke WITA: 0 = Minggu … 6 = Sabtu → Senin = 0.
+  const mondayOffset = (new Date(today * DAY_MS).getUTCDay() + 6) % 7;
+  const monday = today - mondayOffset;
+  const day = dayIndex(Date.parse(iso));
+  return day >= monday && day <= monday + 6;
+}
+
 /** Selisih hari kalender (WITA) dari sekarang ke tanggal mulai event. */
 export function daysUntil(iso: string, now: number | Date): number {
   const dayIndex = (t: number) => Math.floor((t + WITA_OFFSET_MS) / DAY_MS);

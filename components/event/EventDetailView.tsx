@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Backpack, Check, ChevronLeft, Heart, Share2 } from "lucide-react";
 import { formatNumber, initials } from "@/lib/format";
 import { fullTitle } from "@/lib/event";
-import { formatCountdownWords, formatSchedule, getEventStatus } from "@/lib/time";
+import { formatSchedule } from "@/lib/time";
 import type { EventItem } from "@/lib/types";
+import { useEventStatus } from "@/lib/useEventStatus";
 import { useHydrated } from "@/lib/useHydrated";
-import { useNow } from "@/lib/useNow";
 import { useRegistrantCount } from "@/store/useRegistrantCounts";
 import { findRegistration, useRegistrations } from "@/store/useRegistrations";
 import { useSaved } from "@/store/useSaved";
@@ -17,6 +17,7 @@ import { BottomActionBar } from "@/components/layout/BottomActionBar";
 import { CtaButton } from "@/components/ui/Button";
 import { Divider } from "@/components/ui/Divider";
 import { EventInfoCard } from "./EventInfoCard";
+import { EventStatusStrip } from "./EventStatusStrip";
 import { Poster } from "./Poster";
 import { RegisterSheet } from "./RegisterSheet";
 
@@ -29,30 +30,29 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** Tombol bulat di atas hero: ikon 26px, area sentuh 44px. */
+const heroBtn = "press absolute top-[calc(env(safe-area-inset-top)+4px)] flex size-[44px] items-center justify-center";
+
+/**
+ * Halaman Detail Event. Sengaja tidak memakai jam tiap detik di sini:
+ * hitung mundur ada di <EventStatusStrip>, status CTA dari useEventStatus (render ulang hanya saat status berubah),
+ * supaya sheet Daftar dan inputnya tidak ikut di-render ulang tiap detik.
+ */
 export function EventDetailView({ event, prodiOptions }: { event: EventItem; prodiOptions: string[] }) {
   const router = useRouter();
   const hydrated = useHydrated();
-  const now = useNow(1000);
+  const status = useEventStatus(event);
   const isSaved = useSaved((s) => s.saved.includes(event.slug));
   const toggleSaved = useSaved((s) => s.toggle);
   const registration = useRegistrations((s) => findRegistration(s.registrations, event.slug));
   const toast = useToast((s) => s.show);
   const registrantCount = useRegistrantCount(event);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
 
-  // Waktu & data perangkat baru dipakai setelah hydration supaya HTML server dan klien sama.
-  const status = hydrated ? getEventStatus(event, now) : null;
+  // Data perangkat baru dipakai setelah hydration supaya HTML server dan klien sama.
   const saved = hydrated && isSaved;
   const reg = hydrated ? registration : undefined;
-
-  const stripText =
-    status === "upcoming"
-      ? `DIMULAI DALAM ${formatCountdownWords(Date.parse(event.startAt) - now)}`
-      : status === "ongoing"
-        ? "SEDANG BERLANGSUNG"
-        : status === "ended"
-          ? "ACARA SUDAH SELESAI"
-          : "GRATIS UNTUK SEMUA MAHASISWA";
 
   const goBack = () => (window.history.length > 1 ? router.back() : router.push("/"));
 
@@ -84,22 +84,12 @@ export function EventDetailView({ event, prodiOptions }: { event: EventItem; pro
       <div className="relative h-[201px] overflow-hidden">
         <Poster title={event.title} gradient={event.gradient} imageUrl={event.posterUrl} showTitle={false} sizes="393px" priority />
         <div aria-hidden className="absolute inset-0 bg-black/60" />
-        <button
-          type="button"
-          onClick={goBack}
-          aria-label="Kembali"
-          className="press absolute left-[9px] top-[47px] flex size-[44px] items-center justify-center"
-        >
+        <button type="button" onClick={goBack} aria-label="Kembali" className={`${heroBtn} left-[9px]`}>
           <span className="flex size-[26px] items-center justify-center rounded-full bg-primary text-white">
             <ChevronLeft size={18} strokeWidth={2.5} aria-hidden />
           </span>
         </button>
-        <button
-          type="button"
-          onClick={share}
-          aria-label="Bagikan event"
-          className="press absolute right-[9px] top-[47px] flex size-[44px] items-center justify-center"
-        >
+        <button type="button" onClick={share} aria-label="Bagikan event" className={`${heroBtn} right-[9px]`}>
           <span className="flex size-[26px] items-center justify-center rounded-full bg-primary text-white">
             <Share2 size={14} strokeWidth={2.5} aria-hidden />
           </span>
@@ -107,8 +97,11 @@ export function EventDetailView({ event, prodiOptions }: { event: EventItem; pro
       </div>
 
       <div className="-mt-[90px]">
-        <EventInfoCard event={event} stripText={stripText} />
+        <EventInfoCard event={event} strip={<EventStatusStrip event={event} />} />
       </div>
+
+      {/* Subjudul panjang: lebar penuh di bawah kartu info, bukan dijepit di kolom sempit samping poster. */}
+      {event.subtitle && <p className="px-[20px] pt-[12px] text-[15px] leading-[21px] text-text-muted">{event.subtitle}</p>}
 
       {/* Pendaftar & simpan */}
       <div className="flex items-center px-[6px] py-[10px]">
@@ -125,7 +118,7 @@ export function EventDetailView({ event, prodiOptions }: { event: EventItem; pro
           type="button"
           aria-pressed={saved}
           onClick={() => toast(toggleSaved(event.slug) ? "Event disimpan" : "Event dihapus dari simpanan")}
-          className="press flex flex-1 flex-col items-start pl-[20px]"
+          className="press flex min-h-[44px] flex-1 flex-col items-start justify-center pl-[20px]"
         >
           <span className="flex items-center gap-[6px] text-[16px] font-medium text-text">
             <Heart size={21} className="text-danger" fill={saved ? "currentColor" : "none"} strokeWidth={2} aria-hidden />
@@ -138,6 +131,10 @@ export function EventDetailView({ event, prodiOptions }: { event: EventItem; pro
       <Divider thick />
 
       <div className="space-y-[24px] px-[20px] py-[20px]">
+        <Section title="Tentang acara">
+          <p className="text-[15px] leading-[22px] text-text">{event.description}</p>
+        </Section>
+
         <Section title="Untuk siapa">
           <p className="text-[15px] leading-[22px] text-text">{event.audience}</p>
           <p className="mt-[4px] text-[13px] text-text-muted">Terbuka untuk semua mahasiswa.</p>
@@ -167,10 +164,6 @@ export function EventDetailView({ event, prodiOptions }: { event: EventItem; pro
           </ul>
         </Section>
 
-        <Section title="Tentang acara">
-          <p className="text-[15px] leading-[22px] text-text">{event.description}</p>
-        </Section>
-
         <Section title="Pemateri">
           <div className="flex items-center gap-[12px]">
             <span
@@ -194,7 +187,7 @@ export function EventDetailView({ event, prodiOptions }: { event: EventItem; pro
         </CtaButton>
       </BottomActionBar>
 
-      <RegisterSheet event={event} prodiOptions={prodiOptions} open={sheetOpen} onClose={() => setSheetOpen(false)} />
+      <RegisterSheet event={event} prodiOptions={prodiOptions} open={sheetOpen} onClose={closeSheet} />
     </main>
   );
 }

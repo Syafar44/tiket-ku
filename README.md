@@ -32,7 +32,7 @@ Tampilan dirancang untuk lebar 393px. Di desktop, aplikasi tampil di tengah laya
 | Route | Isi |
 |---|---|
 | `/` | Beranda: banner, chip kategori, carousel & grid event yang belum selesai |
-| `/jelajah` | Semua event (akan datang dulu, lalu yang selesai) + pencarian |
+| `/jelajah` | Semua event (akan datang dulu, lalu yang selesai) + filter kategori |
 | `/event/[slug]` | Detail event + sheet **Daftar Event** |
 | `/event/[slug]/berhasil` | Konfirmasi "Kamu terdaftar!" |
 | `/tiket` | Tiket Saya: tab Akan Datang / Riwayat (rating) |
@@ -44,6 +44,8 @@ Tampilan dirancang untuk lebar 393px. Di desktop, aplikasi tampil di tengah laya
 |---|---|
 | `SHEETS_API_URL` | URL Web App Apps Script, mis. `https://script.google.com/macros/s/XXXX/exec` |
 | `SHEETS_API_TOKEN` | Token yang dicek oleh Apps Script |
+
+Opsional: `SITE_URL` (URL publik, untuk link absolut di metadata Open Graph). Di Vercel boleh dikosongkan karena otomatis memakai domain produksi.
 
 Jangan beri prefix `NEXT_PUBLIC_`: token hanya dipakai di server (`lib/sheets.ts` memakai `import "server-only"`).
 
@@ -65,7 +67,7 @@ Edit spreadsheet (tab Events / config). Perubahan tampil di web **sekitar 1 meni
 | Data cadangan saat spreadsheet tidak bisa diakses | `data/events.ts`, `lib/config.ts` |
 | Label "GSA UMKT", kategori event | `lib/config.ts` |
 | Banner promo | `data/promos.ts` |
-| Nomor WhatsApp bantuan | `lib/constants.ts` |
+| Nomor WhatsApp bantuan (ikon headset di Beranda) | Tab Config, baris `helpWhatsapp` (mis. `081234567890`). Kosong = ikon disembunyikan. Cadangan: `HELP_WHATSAPP` di `lib/config.ts` |
 
 Field event lengkap ada di `lib/types.ts` (kategori harus salah satu dari `EVENT_CATEGORIES`; `startAt`/`endAt` ISO dengan offset `+08:00`). Link opsional per event: `presenceFormUrl` (Google Form presensi), `waGroupUrl` (grup WhatsApp), `materialsUrl` (materi). Jika kosong, UI menampilkan teks pengganti.
 
